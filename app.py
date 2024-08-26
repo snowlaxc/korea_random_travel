@@ -100,5 +100,5 @@ def generate():
         return jsonify({"message": "당첨 지역을 찾을 수 없습니다.", "regions": []})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
 

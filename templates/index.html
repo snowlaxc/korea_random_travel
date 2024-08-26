@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="kr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>지역 선택기</title>
+    <title>대한민국 어디로 여행 갈까..?</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,6 +14,7 @@
             align-items: center;
             height: 100vh;
             background-color: #f0f8ff;
+            overflow: hidden; /* Prevents scrollbars during loading */
         }
         .container {
             max-width: 600px;
@@ -23,46 +24,32 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
+            position: relative;
             text-align: center;
         }
+        h1 {
+            font-size: 28px; /* Increase font size */
+            margin-bottom: 20px;
+        }
         .form-group {
-            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Responsive columns */
+            gap: 10px; /* Space between grid items */
+            margin-bottom: 30px; /* Increased margin to add space below */
         }
         .form-group label {
-            display: block;
-            margin-bottom: 10px;
+            grid-column: span 4; /* Span all columns for the label */
             font-size: 16px;
+            margin-bottom: 10px;
+            display: block;
         }
         .form-group input {
-            margin-right: 10px;
+            margin-right: 5px;
         }
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        .btn:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        #results, #slot-machine {
+        #slot-machine, #results {
             margin-top: 20px;
             font-size: 24px;
             font-weight: bold;
-            text-align: center;
             display: none; /* Hide initially */
         }
         #slot-machine span, #results span {
@@ -76,8 +63,38 @@
             max-width: 400px;
             animation: slideIn 0.1s ease-in-out;
         }
-        #loading {
-            display: none; /* Hide loading message */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 30px; /* Increased margin to position the button below the results */
+        }
+        .btn:disabled {
+            background-color: #d6d6d6;
+            cursor: not-allowed;
+        }
+        .btn:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            color: white;
+            z-index: 999;
         }
 
         /* 애니메이션 효과 */
@@ -104,35 +121,39 @@
     </style>
 </head>
 <body>
+    <div id="loading-overlay">잠시만 기다려주세요...</div>
     <div class="container">
-        <h1>제외할 지역 선택</h1>
+        <h1>대한민국 어디로 여행 갈까..?</h1>
         <form id="form">
             <div class="form-group">
-                <label>제외할 지역을 선택하세요:</label>
+                <label>제외할 지역을 선택하세요 (최대 8개):</label>
                 {% for code, name in sigungu_map.items() %}
-                    <input type="checkbox" name="excluded_codes" value="{{ code }}"> {{ name }}<br>
+                    <div>
+                        <input type="checkbox" name="excluded_codes" value="{{ code }}"> {{ name }}
+                    </div>
                 {% endfor %}
             </div>
+            <div id="slot-machine"></div>
+            <div id="results"></div>
             <button type="submit" id="submit-btn" class="btn">뽑기</button>
         </form>
-        <div id="slot-machine"></div>
-        <div id="results"></div>
     </div>
 
     <script>
         document.getElementById('form').addEventListener('submit', function(event) {
             event.preventDefault();
 
-            const submitBtn = document.getElementById('submit-btn');
             const formData = new FormData(this);
             const excludedCodes = formData.getAll('excluded_codes');
+            
+            // Check if more than 8 checkboxes are selected
+            if (excludedCodes.length > 8) {
+                alert('제외할 지역은 최대 8개까지 선택할 수 있습니다.');
+                return;
+            }
 
-            // Disable the button and show loading message
-            submitBtn.disabled = true;
-            submitBtn.textContent = '잠시만 기다려주세요...'; // Change button text
-            document.getElementById('loading').style.display = 'none'; // Hide loading message
-            document.getElementById('slot-machine').style.display = 'none';
-            document.getElementById('results').style.display = 'none'; // Hide results initially
+            // Show loading overlay
+            document.getElementById('loading-overlay').style.display = 'flex';
 
             fetch('/generate', {
                 method: 'POST',
@@ -145,9 +166,17 @@
             .then(data => {
                 const regions = data.regions;
 
+                // Hide loading overlay
+                document.getElementById('loading-overlay').style.display = 'none';
+
                 if (regions.length > 0) {
                     let slotMachine = document.getElementById('slot-machine');
                     let resultsDiv = document.getElementById('results');
+                    let submitBtn = document.getElementById('submit-btn');
+
+                    // Disable button and change text
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '랜덤 여행지는..?';
 
                     let currentIndex = 0;
                     let lastRegion = '';
@@ -165,18 +194,24 @@
                         resultsDiv.style.display = 'block'; // Show final result with animation
                         resultsDiv.style.animation = 'slideIn 0.1s ease-in-out'; // Animate result display
 
-                        submitBtn.disabled = false; // Re-enable the button
-                        submitBtn.textContent = '다시 뽑기'; // Change button text back to "다시 뽑기"
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '다시 뽑기'; // Change button text
                     }, 5000);  // 슬롯 머신이 5초 후 멈추도록 설정
 
                     slotMachine.style.display = 'block';
-                    document.getElementById('loading').style.display = 'none'; // Ensure loading message is hidden
                 } else {
                     document.getElementById('results').innerHTML = '<h2>당첨 지역을 찾을 수 없습니다.</h2>';
-                    submitBtn.disabled = false; // Re-enable the button
-                    submitBtn.textContent = '다시 뽑기'; // Change button text back to "다시 뽑기"
                 }
             });
+        });
+
+        document.getElementById('submit-btn').addEventListener('click', function() {
+            if (this.textContent === '다시 뽑기') {
+                // Clear results and reset state
+                document.getElementById('results').style.display = 'none';
+                document.getElementById('slot-machine').style.display = 'none';
+                this.textContent = '뽑기'; // Reset button text
+            }
         });
     </script>
 </body>
