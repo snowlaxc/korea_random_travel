@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지역 선택기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f8ff;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .form-group input {
+            margin-right: 10px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #results, #slot-machine {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            display: none; /* Hide initially */
+        }
+        #slot-machine span, #results span {
+            display: block;
+            padding: 20px;
+            border: 2px solid #007BFF;
+            border-radius: 5px;
+            background-color: #f0f8ff;
+            margin: 10px auto;
+            width: 80%;
+            max-width: 400px;
+            animation: slideIn 0.1s ease-in-out;
+        }
+        #loading {
+            display: none; /* Hide loading message */
+        }
+
+        /* 애니메이션 효과 */
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOut {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(50%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>제외할 지역 선택</h1>
+        <form id="form">
+            <div class="form-group">
+                <label>제외할 지역을 선택하세요:</label>
+                {% for code, name in sigungu_map.items() %}
+                    <input type="checkbox" name="excluded_codes" value="{{ code }}"> {{ name }}<br>
+                {% endfor %}
+            </div>
+            <button type="submit" id="submit-btn" class="btn">뽑기</button>
+        </form>
+        <div id="slot-machine"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        document.getElementById('form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('submit-btn');
+            const formData = new FormData(this);
+            const excludedCodes = formData.getAll('excluded_codes');
+
+            // Disable the button and show loading message
+            submitBtn.disabled = true;
+            submitBtn.textContent = '잠시만 기다려주세요...'; // Change button text
+            document.getElementById('loading').style.display = 'none'; // Hide loading message
+            document.getElementById('slot-machine').style.display = 'none';
+            document.getElementById('results').style.display = 'none'; // Hide results initially
+
+            fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ excluded_codes: excludedCodes })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const regions = data.regions;
+
+                if (regions.length > 0) {
+                    let slotMachine = document.getElementById('slot-machine');
+                    let resultsDiv = document.getElementById('results');
+
+                    let currentIndex = 0;
+                    let lastRegion = '';
+                    let interval = setInterval(() => {
+                        lastRegion = regions[currentIndex];
+                        slotMachine.innerHTML = `<span>${lastRegion}</span>`;
+                        currentIndex = (currentIndex + 1) % regions.length;
+                    }, 100);
+
+                    setTimeout(() => {
+                        clearInterval(interval);
+                        slotMachine.style.display = 'none';
+
+                        resultsDiv.innerHTML = `<span>${lastRegion}</span>`;
+                        resultsDiv.style.display = 'block'; // Show final result with animation
+                        resultsDiv.style.animation = 'slideIn 0.1s ease-in-out'; // Animate result display
+
+                        submitBtn.disabled = false; // Re-enable the button
+                        submitBtn.textContent = '다시 뽑기'; // Change button text back to "다시 뽑기"
+                    }, 5000);  // 슬롯 머신이 5초 후 멈추도록 설정
+
+                    slotMachine.style.display = 'block';
+                    document.getElementById('loading').style.display = 'none'; // Ensure loading message is hidden
+                } else {
+                    document.getElementById('results').innerHTML = '<h2>당첨 지역을 찾을 수 없습니다.</h2>';
+                    submitBtn.disabled = false; // Re-enable the button
+                    submitBtn.textContent = '다시 뽑기'; // Change button text back to "다시 뽑기"
+                }
+            });
+        });
+    </script>
+</body>
+</html>
